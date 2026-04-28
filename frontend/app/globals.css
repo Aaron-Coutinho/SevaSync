@@ -1,0 +1,20 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  }
+
+  /* Prevent iOS Safari zoom on input focus (16px minimum) */
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+}

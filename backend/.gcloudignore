@@ -1,0 +1,7 @@
+__pycache__
+*.pyc
+.env
+.env.local
+seed_data.py
+venv/
+.venv/

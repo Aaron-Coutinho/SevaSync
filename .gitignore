@@ -1,0 +1,35 @@
+# General
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
+*.txt
+
+# Node.js / Frontend
+node_modules/
+.next/
+out/
+build/
+.vercel/
+npm-debug.log
+yarn-error.log
+
+# Python / Backend
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+venv/
+.venv/
+env/
+pip-log.txt
+
+# Environment & Secrets
+.env
+.env.local
+.env.*.local
+*-firebase-adminsdk-*.json
+*-firebase-adminsdk-*.txt
+firebase-debug.log
