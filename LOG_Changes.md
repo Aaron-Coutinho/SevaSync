@@ -953,3 +953,18 @@ The crash was caused by queries combining `.where()` and `.order_by()` on differ
 
 **Status:** ✅ Complete
 ---
+
+---
+## [Update ESLint Config to Flat Config Format] | 28 Apr 2026, 21:43 IST
+
+**Prompt Summary:** Update ESLint configuration to flat config format for ESLint v9, which dropped the .eslintrc format.
+
+**Files Created:**
+- `frontend/eslint.config.mjs` — New flat config file using @eslint/eslintrc FlatCompat to extend next/core-web-vitals and next/typescript.
+
+**Files Modified:** None
+
+**Files Deleted:** None
+
+**Status:** ✅ Complete
+---
