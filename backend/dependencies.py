@@ -30,7 +30,6 @@ async def get_current_user(
     """
     Verify the Firebase ID token in the Authorization header.
     """
-    print(f"DEBUG: Credentials object received: {credentials}")
     if not credentials:
         print("DEBUG: No credentials provided! HTTPBearer rejected the header.")
         raise HTTPException(
@@ -40,7 +39,6 @@ async def get_current_user(
         )
     
     token = credentials.credentials
-    print(f"DEBUG: Received token (first 15 chars): {token[:15] if token else 'None'}")
     try:
         # Allow 10 seconds of clock skew for local dev environments
         decoded_token = firebase_auth.verify_id_token(token, clock_skew_seconds=10)

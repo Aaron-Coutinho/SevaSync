@@ -33,20 +33,26 @@ class AssignmentResponse(BaseModel):
     id: str
     needId: str
     volunteerId: str
-    matchScore: float
-    matchReasons: list[str]
+    matchScore: float = 0.0
+    matchReasons: list[str] = []
     assignedBy: str
     status: AssignmentStatus
-    notes: str
+    notes: str = ""
     assignedAt: Optional[datetime] = None
     acceptedAt: Optional[datetime] = None
     startedAt: Optional[datetime] = None
     completedAt: Optional[datetime] = None
+    # Enriched fields for display
+    volunteerName: Optional[str] = None
+    needTitle: Optional[str] = None
+    urgency: Optional[str] = None
+    area: Optional[str] = None
 
 
 # ── Match Suggestion sub-models ───────────────────────────────────────────────
 class VolunteerSuggestion(BaseModel):
     volunteerId: str
+    name: str  # Volunteer's actual name from volunteer document
     score: float
     reasons: list[str]
 

@@ -24,7 +24,7 @@ interface VolunteerLocation {
 }
 
 interface Volunteer {
-  userId: string;
+  uid: string;
   name: string;
   email: string;
   phone: string;
@@ -81,11 +81,11 @@ function VolunteerCard({ v }: { v: Volunteer }) {
     v.status === "available"
       ? "bg-green-500"
       : v.status === "busy"
-      ? "bg-yellow-500"
-      : "bg-gray-400";
+        ? "bg-yellow-500"
+        : "bg-gray-400";
 
   return (
-    <Link href={`/volunteers/${v.userId}`} className="block h-full">
+    <Link href={`/volunteers/${v.uid}`} className="block h-full">
       <div className="bg-white rounded-xl border border-gray-200 p-5 hover:-translate-y-1 hover:shadow-lg transition-all duration-200 flex flex-col h-full gap-4 relative group">
         {/* Header: Avatar + Name */}
         <div className="flex items-start gap-3 pr-16">
@@ -93,7 +93,7 @@ function VolunteerCard({ v }: { v: Volunteer }) {
             {getInitials(v.name)}
           </div>
           <div className="flex-1 min-w-0">
-            <h3 className="font-bold text-gray-900 truncate group-hover:text-teal-700 transition-colors">
+            <h3 className="font-bold text-gray-900 truncate min-w-0 group-hover:text-teal-700 transition-colors">
               {v.name}
             </h3>
             <p className="text-xs text-gray-500 flex items-center gap-1 mt-0.5 truncate">
@@ -180,7 +180,7 @@ export default function VolunteersPage() {
   // Client-side text filter
   const filteredVolunteers = volunteers.filter((v) => {
     if (!searchQuery) return true;
-    return v.name.toLowerCase().includes(searchQuery.toLowerCase());
+    return v.name?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false;
   });
 
   const clearFilters = () => {
@@ -332,7 +332,7 @@ export default function VolunteersPage() {
             /* Volunteer Grid */
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {filteredVolunteers.map((v) => (
-                <VolunteerCard key={v.userId} v={v} />
+                <VolunteerCard key={v.uid} v={v} />
               ))}
             </div>
           )}

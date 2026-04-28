@@ -30,10 +30,13 @@ axiosInstance.interceptors.request.use(
 axiosInstance.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
-      // Import is deferred to avoid circular deps at module load time
+    const is401 = error.response?.status === 401;
+    const isVerifyToken = error.config?.url?.includes("/auth/verify-token");
+
+    // Don't auto-signout on /auth/verify-token — AuthContext handles that itself.
+    // Auto-signout only for 401s on other protected endpoints.
+    if (is401 && !isVerifyToken) {
       import("./firebase").then(({ signOut }) => signOut());
-      // Redirect to login — works in both App Router and client components
       if (typeof window !== "undefined") {
         window.location.href = "/login";
       }

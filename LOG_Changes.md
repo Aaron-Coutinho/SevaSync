@@ -621,3 +621,335 @@ The crash was caused by queries combining `.where()` and `.order_by()` on differ
 
 **Status:** ✅ Complete
 ---
+
+---
+## [Fix Missing Analytics Router & Remove Debug Token Logging] | 28 Apr 2026, 10:41 IST
+
+**Prompt Summary:** Uncomment the analytics router registration in main.py and remove debug print statements that were exposing raw JWT tokens in the terminal.
+
+**Diagnostic Results & Fixes:**
+- **Analytics Router:** `app.include_router(analytics.router, prefix="/analytics")` was commented out in `backend/main.py` — uncommented it. This was causing all `/analytics/*` frontend calls to silently fail.
+- **Debug Token Leak:** Removed two `print()` debug statements inside `get_current_user()` in `backend/dependencies.py` that were printing the full Bearer credentials object and raw token prefix to the terminal on every authenticated request.
+
+**Files Created:** None
+
+**Files Modified:**
+- `backend/main.py` *(by user — uncommented analytics router)*
+- `backend/dependencies.py` *(by user — removed DEBUG print statements)*
+
+**Files Deleted:** None
+
+**Status:** ✅ Complete
+---
+
+---
+## [Fix 401 Login Race Condition & Sign-Out Loop] | 28 Apr 2026, 10:51 IST
+
+**Prompt Summary:** User still unable to login — POST /auth/verify-token returning 401 despite backend token verification working correctly in isolation.
+
+**Root Cause Identified:** Two compounding bugs:
+1. **Race condition in `login()`** — `setLoading(false)` in the `finally` block fired before `onAuthStateChanged` finished its async `verify-token` call, leaving UI in an unauthenticated state.
+2. **Self-defeating sign-out loop in `api.ts`** — the 401 Axios interceptor was calling `signOut()` on *every* 401, including `POST /auth/verify-token` itself. This wiped the session the moment verify-token returned any error.
+
+**Fixes Applied:**
+- **`contexts/AuthContext.tsx`:** Removed `setLoading` from `login()` — `onAuthStateChanged` now owns the loading lifecycle. Changed `getIdToken()` → `getIdToken(true)` to force-refresh after sign-in. Added `console.error` to the catch block so errors appear in DevTools.
+- **`lib/api.ts`:** 401 interceptor now skips auto-signout when the failing request URL is `/auth/verify-token`.
+
+**Files Created:** None
+
+**Files Modified:**
+- `frontend/contexts/AuthContext.tsx`
+- `frontend/lib/api.ts`
+- `LOG_Changes.md`
+
+**Files Deleted:** None
+
+**Status:** ✅ Complete
+---
+
+---
+## [Fix TypeScript Errors in AuthContext] | 28 Apr 2026, 10:54 IST
+
+**Prompt Summary:** Fix TypeScript compilation errors in `frontend/contexts/AuthContext.tsx`.
+
+**Fixes Applied:**
+- **TS2554 (lines 84 & 109):** `firebaseSignOut(auth)` was passing an argument to a zero-arg wrapper. Our `@/lib/firebase` exports `signOut` as `() => _signOut(auth)` — the `auth` instance is already baked in. Removed the extra `auth` argument from both call sites.
+- **Unused import:** Removed `auth` and `getCurrentUserToken` from the import — neither was used in this file after the fix.
+
+**Files Created:** None
+
+**Files Modified:**
+- `frontend/contexts/AuthContext.tsx`
+- `LOG_Changes.md`
+
+**Files Deleted:** None
+
+**Status:** ✅ Complete
+---
+
+---
+## [Fix 404 on /volunteers, /needs, /assignments Routes] | 28 Apr 2026, 11:01 IST
+
+**Prompt Summary:** Volunteers page shows empty — `GET /volunteers` and `GET /needs` returning 404 in backend terminal despite routers being registered.
+
+**Root Cause:** `redirect_slashes=False` was set on the FastAPI app (added earlier to fix a different issue). With this setting, `GET /volunteers` (no trailing slash) does NOT auto-redirect to `GET /volunteers/`. The router routes were all defined as `@router.get("/")`, which resolves to `/volunteers/` (with slash) when mounted with `prefix="/volunteers"`. The frontend calls `/volunteers` (without slash), so every request 404'd silently.
+
+**Fixes Applied:**
+- Changed root route paths from `"/"` to `""` in three routers:
+  - `routers/volunteers.py` — `GET ""` (list volunteers)
+  - `routers/needs.py` — `POST ""` (create need) and `GET ""` (list needs)
+  - `routers/tasks.py` — `GET ""` (list assignments)
+- `routers/auth.py` was unaffected (uses explicit paths like `/register`, `/verify-token`)
+
+**Files Created:** None
+
+**Files Modified:**
+- `backend/routers/volunteers.py`
+- `backend/routers/needs.py`
+- `backend/routers/tasks.py`
+- `LOG_Changes.md`
+
+**Files Deleted:** None
+
+**Status:** ✅ Complete
+---
+
+---
+## [Fix Volunteer Directory Validation Errors] | 28 Apr 2026, 11:15 IST
+
+**Prompt Summary:** Fix "Volunteer not found" error caused by missing `phone` and `verified` fields skipping Pydantic validation on seeded volunteers.
+
+**Files Created:**
+- `backend/patch_volunteers.py`
+
+**Files Modified:**
+- `backend/models/volunteer.py`
+- `backend/seed_data.py`
+- `LOG_Changes.md`
+
+**Status:** ✅ Complete
+---
+
+---
+## [Fix Frontend Volunteer UID Bug] | 28 Apr 2026, 11:16 IST
+
+**Prompt Summary:** Fix 404 "Volunteer not found" error when clicking volunteer cards caused by mismatch between frontend (`userId`) and backend (`uid`) models.
+
+**Files Created:** None
+
+**Files Modified:**
+- `frontend/app/volunteers/page.tsx` — updated `Volunteer` interface and `VolunteerCard` usages to expect `uid` instead of `userId` matching the backend `VolunteerResponse`.
+- `LOG_Changes.md`
+
+**Status:** ✅ Complete
+---
+
+---
+## [Fix Backend/Frontend Data Issues] | 28 Apr 2026, 13:31 IST
+
+**Prompt Summary:** Fix three backend/frontend issues: GET /needs returning only 1 result, GET /assignments not returning seeded data, and new need location saving as "Unknown, Unknown".
+
+**Files Created:** None
+
+**Files Modified:**
+- `backend/routers/needs.py` — Updated GET /needs to fetch all documents without Firestore filters and apply status/urgency/category filters in Python to avoid composite index errors. Removed .where() clauses that were causing partial results.
+- `backend/routers/tasks.py` — Updated GET /assignments to fetch all documents without Firestore filters and apply volunteerId/needId/status filters in Python. Resolves Recent Assignments panel showing empty.
+- `frontend/app/needs/new/page.tsx` — Added area field to free text form (was hardcoded to "Unknown, Unknown"). Added freeTextArea state variable, updated validation, and added required area input field to the free text tab UI.
+
+**Files Deleted:** None
+
+**Status:** ✅ Complete
+---
+
+---
+## [Fix Needs Board Pydantic Validation Errors] | 28 Apr 2026, 13:42 IST
+
+**Prompt Summary:** Fix Needs Board showing only 1 need due to Pydantic validation errors for missing requiredLanguages field in seeded data.
+
+**Files Created:** None
+
+**Files Modified:**
+- `backend/routers/needs.py` — Updated _doc_to_need() helper function to handle missing fields from seeded data with default values. Added graceful handling for requiredLanguages, requiredSkills, aiTags, and title fields that were causing validation errors and preventing needs from loading.
+
+**Files Deleted:** None
+
+**Status:** ✅ Complete
+---
+
+---
+## [Fix Volunteer Names in Match Suggestions] | 28 Apr 2026, 13:54 IST
+
+**Prompt Summary:** Fix volunteer names showing as UIDs instead of actual names in match suggestions by fetching names from users collection.
+
+**Files Created:** None
+
+**Files Modified:**
+- `backend/services/matching.py` — Updated get_top_matches() to fetch volunteer names from users collection. Added Firestore query to get user document for each volunteer and include actual name in suggestion response with UID fallback.
+- `frontend/components/needs/MatchRecommendations.tsx` — Updated VolunteerSuggestion interface to include required 'name' field and modified VolunteerCard to display suggestion.name instead of suggestion.volunteerName with UID fallback.
+
+**Files Deleted:** None
+
+**Status:** ✅ Complete
+---
+
+---
+## [Fix Volunteer Names and Need Titles Display] | 28 Apr 2026, 14:14 IST
+
+**Prompt Summary:** Fix volunteer names and need titles showing as raw IDs in match suggestions and recent assignments by reading names from volunteer documents instead of users collection, and enriching assignments with volunteer names and need titles.
+
+**Files Created:** None
+
+**Files Modified:**
+- `backend/services/matching.py` — Fixed name lookup to read from volunteer document instead of users collection. Changed from Firestore query to reading name directly from volunteer data: `name = volunteer.get("name") or volunteer.get("displayName") or volunteer_id`.
+- `backend/routers/tasks.py` — Enriched list_assignments endpoint to fetch volunteer names from volunteers collection and need titles from needs collection. Added enrichment loop that populates volunteerName and needTitle fields for each assignment.
+- `backend/models/assignment.py` — Added volunteerName and needTitle optional fields to AssignmentResponse model to support enriched assignment data.
+- `frontend/components/dashboard/ActivityFeed.tsx` — Added truncateTitle function to limit needTitle to 40 characters with ellipsis. Updated display logic to use truncateTitle for need titles with proper TypeScript type safety.
+
+**Files Deleted:** None
+
+**Status:** ✅ Complete
+---
+
+---
+## [Fix Volunteer Names in Match Suggestions Response] | 28 Apr 2026, 14:24 IST
+
+**Prompt Summary:** Fix volunteer names still showing as vol_001, vol_002 in match suggestion cards by ensuring the name field is included in the API response from the backend.
+
+**Files Created:** None
+
+**Files Modified:**
+- `backend/models/assignment.py` — Added required 'name' field to VolunteerSuggestion model to support volunteer names in match suggestions response.
+- `backend/routers/needs.py` — Updated match suggestions endpoint to include name field when constructing VolunteerSuggestion responses. Changed from only including volunteerId, score, and reasons to also including the name field fetched from volunteer documents.
+- `backend/services/matching.py` — Enhanced name lookup to check multiple field names (name, fullName, displayName) with friendly fallback to "Volunteer _006" format. Removed debug logging.
+
+**Files Deleted:** None
+
+**Status:** ✅ Complete
+---
+
+---
+## [Fix TypeError in Volunteers Page Search] | 28 Apr 2026, 14:30 IST
+
+**Prompt Summary:** Fix TypeError: Cannot read properties of null (reading 'toLowerCase') in volunteers page search filter.
+
+**Files Created:** None
+
+**Files Modified:**
+- `frontend/app/volunteers/page.tsx` — Added null check for v.name before calling toLowerCase() in search filter. Changed from `v.name.toLowerCase()` to `v.name?.toLowerCase() ?? false` to prevent runtime error when volunteer name is null or undefined.
+
+**Files Deleted:** None
+
+**Status:** ✅ Complete
+---
+
+---
+## [Fix Volunteer Detail Page Display Issues] | 28 Apr 2026, 14:36 IST
+
+**Prompt Summary:** Fix two display issues on Volunteer Detail page: "Member since Unknown date" and "Unknown Need" in task history.
+
+**Files Created:** None
+
+**Files Modified:**
+- `frontend/app/volunteers/[id]/page.tsx` — Updated formatDate function to handle Firestore Timestamp objects serialized as {_seconds: 1234567, _nanoseconds: 0}. Added check for object type with _seconds property and converts to Date using seconds * 1000.
+- `backend/routers/volunteers.py` — Enriched GET /volunteers/{uid}/tasks endpoint to fetch need titles, urgency, and area from needs collection. Added enrichment loop that populates needTitle, urgency, and area fields for each assignment.
+- `backend/models/assignment.py` — Added urgency and area optional fields to AssignmentResponse model to support enriched task data for volunteer detail page.
+
+**Files Deleted:** None
+
+**Status:** ✅ Complete
+---
+
+---
+## [Fix Volunteer Profile Data Issues] | 28 Apr 2026, 14:43 IST
+
+**Prompt Summary:** Fix two issues with volunteer profile data: real volunteer accounts have no name on their profile, and seeded volunteers show "Unknown date" for Member since.
+
+**Files Created:** None
+
+**Files Modified:**
+- `backend/routers/volunteers.py` — Enriched GET /volunteers/{uid} endpoint to fetch name and email from users collection as fallback if missing from volunteer document. Added user_doc lookup when volunteer_data.get("name") is falsy.
+- `backend/routers/auth.py` — Updated POST /auth/volunteer-profile to fetch name from users collection during volunteer profile creation and include it in the volunteer document. Added user_doc lookup before creating volunteer_doc.
+- `frontend/app/volunteers/[id]/page.tsx` — Updated formatDate and formatAssignedDate functions to handle Firestore Timestamp objects with both _seconds and seconds fields. Added support for ISO strings and proper null checking.
+
+**Files Deleted:** None
+
+**Status:** ✅ Complete
+---
+
+---
+## [Fix Volunteer Names on Dashboard] | 28 Apr 2026, 14:46 IST
+
+**Prompt Summary:** Fix volunteer names not showing on volunteer dashboard (directory page). Names show on detail page but not on the directory list.
+
+**Files Created:** None
+
+**Files Modified:**
+- `backend/routers/volunteers.py` — Enriched GET /volunteers endpoint (list_volunteers) to fetch names from users collection for volunteers missing name field. Added user_doc lookup when volunteer_data.get("name") is falsy, similar to the single volunteer endpoint fix.
+
+**Files Deleted:** None
+
+**Status:** ✅ Complete
+---
+
+---
+## [Fix Volunteer Card Truncation and My Tasks Need Titles] | 28 Apr 2026, 15:03 IST
+
+**Prompt Summary:** Fix volunteer name truncation in volunteer card and "Unknown Need" showing in volunteer My Tasks page.
+
+**Files Created:** None
+
+**Files Modified:**
+- `frontend/app/volunteers/page.tsx` — Added min-w-0 to volunteer name h3 element for proper truncation when names are long.
+- `frontend/app/my-tasks/page.tsx` — Updated to use backend-enriched need data from /volunteers/{uid}/tasks endpoint instead of client-side enrichment. Removed client-side need fetching, simplified Assignment type to include needTitle, urgency, and area fields. Updated formatDate to handle Firestore Timestamp objects.
+
+**Files Deleted:** None
+
+**Status:** ✅ Complete
+---
+
+---
+## [Fix Assignment orgId for Real Volunteer Accounts] | 28 Apr 2026, 19:33 IST
+
+**Prompt Summary:** Fix assignments created for real volunteer accounts (registered via app) not appearing in Recent Assignments on Dashboard. Root cause: real volunteer accounts have incomplete volunteers/{uid} documents missing orgId field, so assignments were created without orgId and Recent Assignments query couldn't find them.
+
+**Files Created:** None
+
+**Files Modified:**
+- `backend/routers/needs.py` — Updated POST /needs/{id}/assign to fetch orgId from coordinator's user document instead of volunteer document. Added admin_user_doc lookup to get organization field and included orgId in assignment_data.
+- `backend/routers/auth.py` — Updated POST /auth/volunteer-profile to fetch orgId from users collection during volunteer profile creation and include it in the volunteer document. Added org_id lookup and included orgId in volunteer_doc.
+
+**Files Deleted:** None
+
+**Status:** ✅ Complete
+**Manual Step Required:** Backfill existing test volunteer account in Firestore by adding orgId field with the same value as coordinator's org to volunteers/{your-volunteer-uid} document.
+---
+
+---
+## [Fix Recent Assignments Showing VolunteerId] | 28 Apr 2026, 19:56 IST
+
+**Prompt Summary:** Fix Recent Assignments on Dashboard showing volunteerId (e.g., "4mIIMLW87aYL3yKLIqbptbJRG4H2") instead of volunteer name. Root cause: volunteer documents for real accounts may be missing the name field, so the enrichment logic in list_assignments endpoint falls back to volunteerId.
+
+**Files Created:** None
+
+**Files Modified:**
+- `backend/routers/tasks.py` — Updated GET /assignments endpoint to add fallback logic for volunteer name. If name is missing from volunteer document, fetch it from users collection as fallback before using volunteerId.
+
+**Files Deleted:** None
+
+**Status:** ✅ Complete
+---
+
+---
+## [Fix Assignment Validation Errors for Seeded Data] | 28 Apr 2026, 21:04 IST
+
+**Prompt Summary:** Fix validation errors in terminal showing "Skipping malformed assignment doc" for seeded assignment documents (assign_001, assign_002, etc.) missing required fields matchScore, matchReasons, and notes.
+
+**Files Created:** None
+
+**Files Modified:**
+- `backend/models/assignment.py` — Made matchScore, matchReasons, and notes fields optional with default values in AssignmentResponse model. matchScore defaults to 0.0, matchReasons defaults to empty list, notes defaults to empty string. This handles seeded assignment documents that were created without these fields.
+
+**Files Deleted:** None
+
+**Status:** ✅ Complete
+---

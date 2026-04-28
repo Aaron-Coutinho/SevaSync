@@ -78,6 +78,7 @@ export default function NewNeedPage() {
 
   // ── Free text state ───────────────────────────────────────────────────
   const [freeText, setFreeText] = useState("");
+  const [freeTextArea, setFreeTextArea] = useState("");
   const [analyzing, setAnalyzing] = useState(false);
 
   // ── Field-level errors ────────────────────────────────────────────────
@@ -129,13 +130,17 @@ export default function NewNeedPage() {
       setErrors({ freeText: "Please describe the situation first." });
       return;
     }
+    if (!freeTextArea.trim()) {
+      setErrors({ freeTextArea: "Area is required." });
+      return;
+    }
     setErrors({});
     setAnalyzing(true);
     setApiError(null);
     try {
       const res = await post<{ id: string }>("/needs", {
         rawDescription: freeText.trim(),
-        location: { area: "Unknown", city: "Unknown" },
+        location: { area: freeTextArea.trim(), city: "Mumbai" },
         beneficiaryCount: 1,
         submittedBy: user?.uid ?? "",
       });
@@ -187,8 +192,8 @@ export default function NewNeedPage() {
                 type="button"
                 onClick={() => { setTab(t); setErrors({}); setApiError(null); }}
                 className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-colors min-h-[44px] ${tab === t
-                    ? "bg-white text-gray-900 shadow-sm"
-                    : "text-gray-500 hover:text-gray-700"
+                  ? "bg-white text-gray-900 shadow-sm"
+                  : "text-gray-500 hover:text-gray-700"
                   }`}
               >
                 {t === "quick" ? "📋 Quick Form" : "✍️ Free Text + AI"}
@@ -301,8 +306,8 @@ export default function NewNeedPage() {
                       type="button"
                       onClick={() => toggleLang(lang)}
                       className={`px-3 py-1.5 rounded-lg border text-sm font-medium transition-colors ${selectedLangs.includes(lang)
-                          ? "border-teal-600 bg-teal-50 text-teal-700"
-                          : "border-gray-300 text-gray-600 hover:bg-gray-50"
+                        ? "border-teal-600 bg-teal-50 text-teal-700"
+                        : "border-gray-300 text-gray-600 hover:bg-gray-50"
                         }`}
                     >
                       {lang}
@@ -366,11 +371,25 @@ export default function NewNeedPage() {
                 <textarea
                   value={freeText}
                   onChange={(e) => setFreeText(e.target.value)}
-                  rows={8}
+                  rows={6}
                   placeholder="Describe the situation in your own words… e.g. 'An elderly diabetic woman in Kurla has not received medicine for two days and cannot travel.'"
                   className="w-full rounded-lg border border-gray-300 px-3 py-3 text-base text-gray-900 focus:outline-none focus:ring-2 focus:ring-teal-500 resize-none"
                 />
                 <FieldError msg={errors.freeText} />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                  Area <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={freeTextArea}
+                  onChange={(e) => setFreeTextArea(e.target.value)}
+                  placeholder="e.g. Kurla"
+                  className={inputClass}
+                />
+                <FieldError msg={errors.freeTextArea} />
               </div>
 
               <div className="rounded-xl bg-teal-50 border border-teal-200 px-4 py-3 text-sm text-teal-800">

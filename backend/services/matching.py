@@ -147,7 +147,7 @@ def compute_match_score(need: dict, volunteer: dict) -> tuple[int, list[str]]:
 # ── Top-N matching ────────────────────────────────────────────────────────────
 def get_top_matches(need: dict, volunteers: list[dict]) -> list[dict]:
     """
-    Return the top 3 volunteer recommendations for a given need.
+    Return top 3 volunteer recommendations for a given need.
 
     Filters to eligible volunteers (available + capacity), scores each,
     and returns results sorted by matchScore descending.
@@ -159,6 +159,7 @@ def get_top_matches(need: dict, volunteers: list[dict]) -> list[dict]:
     Returns:
         List of up to 3 dicts, each with:
             - volunteerId (str)
+            - name        (str) - volunteer's actual name from volunteer doc
             - score       (int)
             - reasons     (list[str])
     """
@@ -174,9 +175,20 @@ def get_top_matches(need: dict, volunteers: list[dict]) -> list[dict]:
         if not reasons:
             reasons = ["Available for new tasks"]
 
+        volunteer_id = volunteer.get("uid", volunteer.get("id", ""))
+        
+        # Name is already in the volunteer document (from seeded data or user profile)
+        name = (
+            volunteer.get("name") or
+            volunteer.get("fullName") or
+            volunteer.get("displayName") or
+            f"Volunteer {volunteer_id[-4:]}"  # friendly fallback e.g. "Volunteer _006"
+        )
+
         scored.append(
             {
-                "volunteerId": volunteer.get("uid", volunteer.get("id", "")),
+                "volunteerId": volunteer_id,
+                "name": name,
                 "score": score,
                 "reasons": reasons,
             }

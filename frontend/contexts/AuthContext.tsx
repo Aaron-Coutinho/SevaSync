@@ -14,11 +14,9 @@ import {
 } from "react";
 import { type User } from "firebase/auth";
 import {
-  auth,
   signInWithEmail,
   signOut as firebaseSignOut,
   onAuthStateChanged,
-  getCurrentUserToken,
 } from "@/lib/firebase";
 import { post } from "@/lib/api";
 
@@ -61,7 +59,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const unsubscribe = onAuthStateChanged(async (firebaseUser: User | null) => {
       if (firebaseUser) {
         try {
-          const idToken = await firebaseUser.getIdToken();
+          // Force-refresh to get the very latest token after sign-in
+          const idToken = await firebaseUser.getIdToken(true);
           setToken(idToken);
 
           // Fetch role and org from backend
@@ -76,9 +75,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           });
           setRole((verifiedUser.role as Role) ?? "volunteer");
           setOrganization(verifiedUser.organization ?? "");
-        } catch {
+        } catch (err) {
+          // Log the actual error so it appears in the browser console
+          console.error("[AuthContext] verify-token failed:", err);
           // Token invalid or backend unreachable — sign out cleanly
-          await firebaseSignOut(auth);
+          await firebaseSignOut();
           setUser(null);
           setRole(null);
           setOrganization(null);
@@ -97,17 +98,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = useCallback(async (email: string, password: string) => {
-    setLoading(true);
-    try {
-      await signInWithEmail(email, password);
-      // onAuthStateChanged will fire and set state automatically
-    } finally {
-      setLoading(false);
-    }
+    // Don't touch loading here — onAuthStateChanged owns the loading lifecycle.
+    // This prevents a race where setLoading(false) fires before verify-token completes.
+    await signInWithEmail(email, password);
   }, []);
 
   const logout = useCallback(async () => {
-    await firebaseSignOut(auth);
+    await firebaseSignOut();
     // onAuthStateChanged fires with null and clears state
   }, []);
 

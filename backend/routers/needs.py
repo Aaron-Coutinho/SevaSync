@@ -52,6 +52,17 @@ def _get_db() -> firestore.Client:
 def _doc_to_need(doc) -> NeedResponse:
     data = doc.to_dict()
     data["id"] = doc.id
+    
+    # Handle missing fields from seeded data with defaults
+    if "requiredLanguages" not in data or data["requiredLanguages"] is None:
+        data["requiredLanguages"] = []
+    if "requiredSkills" not in data or data["requiredSkills"] is None:
+        data["requiredSkills"] = []
+    if "aiTags" not in data or data["aiTags"] is None:
+        data["aiTags"] = []
+    if "title" not in data or data["title"] is None:
+        data["title"] = "Untitled Need"
+    
     return NeedResponse(**data)
 
 
@@ -77,7 +88,7 @@ class AssignBody(BaseModel):
 
 # ── POST /needs ───────────────────────────────────────────────────────────────
 @router.post(
-    "/",
+    "",
     response_model=NeedResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Create a new community need",
@@ -166,7 +177,7 @@ def create_need(
 
 # ── GET /needs ────────────────────────────────────────────────────────────────
 @router.get(
-    "/",
+    "",
     response_model=list[NeedResponse],
     summary="List all needs sorted by priority",
 )
@@ -179,26 +190,27 @@ def list_needs(
     _admin: dict = Depends(verify_admin),
 ) -> list[NeedResponse]:
     """
-    Stream all needs from Firestore, apply optional filters, and return
+    Stream all needs from Firestore, apply optional filters in Python, and return
     sorted by priorityScore descending (highest priority first).
     """
     db = _get_db()
-    query = db.collection("needs")
-
-    if status_filter:
-        query = query.where(filter=firestore.FieldFilter("status", "==", status_filter))
-    if urgency:
-        query = query.where(filter=firestore.FieldFilter("urgency", "==", urgency))
-    if category:
-        query = query.where(filter=firestore.FieldFilter("category", "==", category))
-
-    docs = query.stream()
+    
+    # Fetch all needs without Firestore filters to avoid index issues
+    docs = db.collection("needs").stream()
     results: list[NeedResponse] = []
     for doc in docs:
         try:
             results.append(_doc_to_need(doc))
         except Exception as exc:
             logger.warning("Skipping malformed need doc %s: %s", doc.id, exc)
+
+    # Apply filters in Python
+    if status_filter:
+        results = [n for n in results if n.status == status_filter]
+    if urgency:
+        results = [n for n in results if n.urgency == urgency]
+    if category:
+        results = [n for n in results if n.category == category]
 
     # Sort by priorityScore descending in Python (avoids compound index)
     results.sort(key=lambda n: n.priorityScore or 0, reverse=True)
@@ -437,6 +449,7 @@ def get_suggestions(
         suggestions=[
             VolunteerSuggestion(
                 volunteerId=m["volunteerId"],
+                name=m.get("name", m["volunteerId"]),
                 score=m["score"],
                 reasons=m["reasons"],
             )
@@ -508,6 +521,10 @@ def assign_volunteer(
     """
     db = _get_db()
 
+    # Get orgId from coordinator's user document (not from volunteer)
+    admin_user_doc = db.collection("users").document(admin["uid"]).get()
+    org_id = admin_user_doc.to_dict().get("organization", "") if admin_user_doc.exists else ""
+
     # Validate need
     need_ref = db.collection("needs").document(need_id)
     need_doc = need_ref.get()
@@ -567,6 +584,7 @@ def assign_volunteer(
         "matchScore": match_score,
         "matchReasons": match_reasons,
         "assignedBy": admin["uid"],
+        "orgId": org_id,  # From coordinator's user document
         "status": AssignmentStatus.assigned.value,
         "notes": "",
         "assignedAt": admin_firestore.SERVER_TIMESTAMP,

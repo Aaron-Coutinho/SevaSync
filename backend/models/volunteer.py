@@ -68,15 +68,18 @@ class VolunteerUpdate(BaseModel):
 # ── Response ──────────────────────────────────────────────────────────────────
 class VolunteerResponse(BaseModel):
     uid: str
-    phone: str
-    skills: list[SkillTag]
-    languages: list[str]
+    phone: Optional[str] = ""          # optional — may be absent in seeded docs
+    skills: list[str] = []              # plain str so unknown tags don't crash
+    languages: list[str] = []
     location: VolunteerLocation
-    availability: VolunteerAvailability
-    maxActiveTasks: int
-    activeTaskCount: int
-    status: VolunteerStatus
-    verified: bool
-    totalCompleted: int
-    rating: float
+    availability: VolunteerAvailability = VolunteerAvailability()
+    maxActiveTasks: int = 3
+    activeTaskCount: int = 0
+    status: VolunteerStatus = VolunteerStatus.available
+    verified: Optional[bool] = False    # optional — may be absent in seeded docs
+    totalCompleted: int = 0
+    rating: float = 0.0
     joinedAt: Optional[datetime] = None
+    # Extra flat fields that come from seed data written before location nesting
+    name: Optional[str] = None
+    area: Optional[str] = None          # legacy flat field in seed docs

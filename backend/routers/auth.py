@@ -187,8 +187,15 @@ def create_volunteer_profile(
 
     from firebase_admin import firestore as fs
 
+    # Fetch name and orgId from users collection (saved during registration)
+    user_doc = db.collection("users").document(uid).get()
+    name = user_doc.to_dict().get("name", "") if user_doc.exists else ""
+    org_id = user_doc.to_dict().get("organization", "") if user_doc.exists else ""
+
     volunteer_doc = {
         "uid": uid,
+        "name": name,  # Include name from users collection
+        "orgId": org_id,  # Include orgId from users collection
         "phone": body.phone,
         "skills": [s.value for s in body.skills],
         "languages": body.languages,

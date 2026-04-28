@@ -78,20 +78,52 @@ function getInitials(name: string) {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
-function formatDate(dateStr: string | undefined) {
+function formatDate(dateStr: string | undefined | any) {
   if (!dateStr) return "Unknown date";
+  // Firestore Timestamp object with _seconds field
+  if (dateStr?._seconds) {
+    return new Date(dateStr._seconds * 1000).toLocaleDateString("en-US", { month: "short", year: "numeric" });
+  }
+  // Firestore Timestamp with seconds field
+  if (dateStr?.seconds) {
+    return new Date(dateStr.seconds * 1000).toLocaleDateString("en-US", { month: "short", year: "numeric" });
+  }
+  // ISO string or any parseable date string
   const d = new Date(dateStr);
-  return d.toLocaleDateString("en-US", { month: "short", year: "numeric" });
+  if (!isNaN(d.getTime())) {
+    return d.toLocaleDateString("en-US", { month: "short", year: "numeric" });
+  }
+  return "Unknown date";
 }
 
-function formatAssignedDate(dateStr: string | null) {
+function formatAssignedDate(dateStr: string | null | any) {
   if (!dateStr) return "N/A";
+  // Firestore Timestamp object with _seconds field
+  if (dateStr?._seconds) {
+    return new Date(dateStr._seconds * 1000).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+  }
+  // Firestore Timestamp with seconds field
+  if (dateStr?.seconds) {
+    return new Date(dateStr.seconds * 1000).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+  }
+  // ISO string or any parseable date string
   const d = new Date(dateStr);
-  return d.toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
+  if (!isNaN(d.getTime())) {
+    return d.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+  }
+  return "N/A";
 }
 
 // ── Skeleton Components ────────────────────────────────────────────────────────
@@ -277,13 +309,12 @@ export default function VolunteerDetailPage() {
                   title={`Status: ${volunteer.status}`}
                 >
                   <div
-                    className={`h-2.5 w-2.5 rounded-full ${
-                      volunteer.status === "available"
-                        ? "bg-green-500"
-                        : volunteer.status === "busy"
+                    className={`h-2.5 w-2.5 rounded-full ${volunteer.status === "available"
+                      ? "bg-green-500"
+                      : volunteer.status === "busy"
                         ? "bg-yellow-500"
                         : "bg-gray-400"
-                    }`}
+                      }`}
                   />
                   <span className="text-[10px] font-bold text-gray-600 uppercase tracking-wider">
                     {volunteer.status}
@@ -410,11 +441,10 @@ export default function VolunteerDetailPage() {
                   </div>
                   <div className="w-full bg-gray-100 rounded-full h-2.5 overflow-hidden">
                     <div
-                      className={`h-2.5 rounded-full ${
-                        (volunteer.activeTaskCount || 0) >= (volunteer.maxActiveTasks || 3)
-                          ? "bg-red-500"
-                          : "bg-teal-500"
-                      }`}
+                      className={`h-2.5 rounded-full ${(volunteer.activeTaskCount || 0) >= (volunteer.maxActiveTasks || 3)
+                        ? "bg-red-500"
+                        : "bg-teal-500"
+                        }`}
                       style={{
                         width: `${Math.min(
                           ((volunteer.activeTaskCount || 0) / (volunteer.maxActiveTasks || 3)) * 100,
@@ -449,26 +479,24 @@ export default function VolunteerDetailPage() {
               {/* 5. Tasks Section */}
               <div className="mt-8">
                 <h2 className="text-lg font-bold text-gray-900 mb-4">Task History</h2>
-                
+
                 {/* Tabs */}
                 <div className="flex border-b border-gray-200 mb-6 overflow-x-auto">
                   <button
                     onClick={() => setActiveTab("active")}
-                    className={`flex-1 md:flex-none px-6 py-3 min-h-[44px] text-sm font-semibold border-b-2 transition-colors whitespace-nowrap ${
-                      activeTab === "active"
-                        ? "border-teal-600 text-teal-700 bg-teal-50/50"
-                        : "border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50"
-                    }`}
+                    className={`flex-1 md:flex-none px-6 py-3 min-h-[44px] text-sm font-semibold border-b-2 transition-colors whitespace-nowrap ${activeTab === "active"
+                      ? "border-teal-600 text-teal-700 bg-teal-50/50"
+                      : "border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50"
+                      }`}
                   >
                     Active Tasks ({activeTasks.length})
                   </button>
                   <button
                     onClick={() => setActiveTab("completed")}
-                    className={`flex-1 md:flex-none px-6 py-3 min-h-[44px] text-sm font-semibold border-b-2 transition-colors whitespace-nowrap ${
-                      activeTab === "completed"
-                        ? "border-teal-600 text-teal-700 bg-teal-50/50"
-                        : "border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50"
-                    }`}
+                    className={`flex-1 md:flex-none px-6 py-3 min-h-[44px] text-sm font-semibold border-b-2 transition-colors whitespace-nowrap ${activeTab === "completed"
+                      ? "border-teal-600 text-teal-700 bg-teal-50/50"
+                      : "border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50"
+                      }`}
                   >
                     Completed ({completedTasks.length})
                   </button>
@@ -532,7 +560,7 @@ export default function VolunteerDetailPage() {
                 <X size={20} />
               </button>
             </div>
-            
+
             <div className="p-6">
               <label className="block text-sm font-semibold text-gray-700 mb-2">
                 Select Open Need

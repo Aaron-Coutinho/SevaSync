@@ -63,7 +63,7 @@ VALID_TRANSITIONS: dict[str, set[str]] = {
 
 # ── GET /assignments ──────────────────────────────────────────────────────────
 @router.get(
-    "/",
+    "",
     response_model=list[AssignmentResponse],
     summary="List assignments (admin only)",
 )
@@ -74,27 +74,55 @@ def list_assignments(
     _admin: dict = Depends(verify_admin),
 ) -> list[AssignmentResponse]:
     """
-    Return all assignment documents with optional filters.
+    Return all assignment documents with optional filters applied in Python.
+    Enriches each assignment with volunteer name and need title.
     Admin-only endpoint.
     """
     db = _get_db()
-    query = db.collection("assignments")
-
-    if volunteerId:
-        query = query.where(filter=firestore.FieldFilter("volunteerId", "==", volunteerId))
-    if needId:
-        query = query.where(filter=firestore.FieldFilter("needId", "==", needId))
-    if status_filter:
-        query = query.where(filter=firestore.FieldFilter("status", "==", status_filter))
-
+    
+    # Fetch all assignments without Firestore filters to avoid index issues
+    docs = db.collection("assignments").stream()
     results: list[AssignmentResponse] = []
-    for doc in query.stream():
+    for doc in docs:
         try:
             results.append(_doc_to_assignment(doc))
         except Exception as exc:
             logger.warning("Skipping malformed assignment doc %s: %s", doc.id, exc)
 
-    return results
+    # Apply filters in Python
+    if volunteerId:
+        results = [a for a in results if a.volunteerId == volunteerId]
+    if needId:
+        results = [a for a in results if a.needId == needId]
+    if status_filter:
+        results = [a for a in results if a.status == status_filter]
+
+    # Enrich with volunteer names and need titles
+    enriched_results = []
+    for assignment in results:
+        # Fetch volunteer name from volunteers collection
+        vol_doc = db.collection("volunteers").document(assignment.volunteerId).get()
+        volunteer_name = assignment.volunteerId
+        if vol_doc.exists:
+            vol_data = vol_doc.to_dict()
+            volunteer_name = vol_data.get("name") or vol_data.get("displayName") or assignment.volunteerId
+            # Fallback: fetch name from users collection if missing from volunteer doc
+            if not vol_data.get("name"):
+                user_doc = db.collection("users").document(assignment.volunteerId).get()
+                if user_doc.exists:
+                    volunteer_name = user_doc.to_dict().get("name", assignment.volunteerId)
+        
+        # Fetch need title from needs collection
+        need_doc = db.collection("needs").document(assignment.needId).get()
+        need_title = need_doc.to_dict().get("title", "Untitled Need") if need_doc.exists else "Unknown Need"
+        
+        # Create enriched response
+        enriched_data = assignment.model_dump()
+        enriched_data["volunteerName"] = volunteer_name
+        enriched_data["needTitle"] = need_title
+        enriched_results.append(AssignmentResponse(**enriched_data))
+
+    return enriched_results
 
 
 # ── GET /assignments/{id} ─────────────────────────────────────────────────────

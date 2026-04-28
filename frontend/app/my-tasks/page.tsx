@@ -24,55 +24,51 @@ interface Assignment {
   status: "assigned" | "accepted" | "started" | "completed" | "declined";
   assignedAt: string;
   notes?: string;
-}
-
-interface Need {
-  id: string;
-  title: string;
-  category: string;
-  urgency: string;
-  location: {
-    area: string;
-    city: string;
-  };
-}
-
-interface EnrichedTask extends Assignment {
-  needTitle: string;
-  needCategory: string;
-  needUrgency: string;
-  needLocationArea: string;
-  needLocationCity: string;
+  // Backend-enriched fields
+  needTitle?: string;
+  urgency?: string;
+  area?: string;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-function formatDate(isoString: string) {
-  return new Date(isoString).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
+function formatDate(dateStr: string | null | any) {
+  if (!dateStr) return "N/A";
+  // Firestore Timestamp object with _seconds field
+  if (dateStr?._seconds) {
+    return new Date(dateStr._seconds * 1000).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+  }
+  // Firestore Timestamp with seconds field
+  if (dateStr?.seconds) {
+    return new Date(dateStr.seconds * 1000).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+  }
+  // ISO string or any parseable date string
+  const d = new Date(dateStr);
+  if (!isNaN(d.getTime())) {
+    return d.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+  }
+  return "N/A";
 }
-
-const CATEGORY_LABELS: Record<string, string> = {
-  food_essentials: "Food & Essentials",
-  medical: "Medical",
-  elderly_support: "Elderly Support",
-  child_support: "Child Support",
-  transport_logistics: "Transport & Logistics",
-  documentation: "Documentation",
-  shelter_community: "Shelter & Community",
-};
 
 // ── Components ────────────────────────────────────────────────────────────────
 function Toast({ message, visible }: { message: string; visible: boolean }) {
   return (
     <div
-      className={`fixed bottom-24 left-1/2 -translate-x-1/2 z-50 transition-all duration-300 ${
-        visible
-          ? "opacity-100 translate-y-0"
-          : "opacity-0 translate-y-4 pointer-events-none"
-      }`}
+      className={`fixed bottom-24 left-1/2 -translate-x-1/2 z-50 transition-all duration-300 ${visible
+        ? "opacity-100 translate-y-0"
+        : "opacity-0 translate-y-4 pointer-events-none"
+        }`}
     >
       <div className="flex items-center gap-2 bg-green-600 text-white text-sm font-semibold px-5 py-3 rounded-full shadow-lg">
         <CheckCircle size={16} />
@@ -103,7 +99,7 @@ function TaskSkeleton() {
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function MyTasksPage() {
   const { user } = useAuth();
-  const [tasks, setTasks] = useState<EnrichedTask[]>([]);
+  const [tasks, setTasks] = useState<Assignment[]>([]);
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -120,36 +116,9 @@ export default function MyTasksPage() {
     setLoading(true);
     setError(null);
     try {
-      // 1. Fetch assignments
+      // Fetch assignments with backend-enriched need data
       const assignments = await get<Assignment[]>(`/volunteers/${user.uid}/tasks`);
-
-      // 2. Fetch need details for each assignment in parallel
-      const enrichedPromises = assignments.map(async (a) => {
-        try {
-          const need = await get<Need>(`/needs/${a.needId}`);
-          return {
-            ...a,
-            needTitle: need.title,
-            needCategory: need.category,
-            needUrgency: need.urgency,
-            needLocationArea: need.location?.area || "Unknown",
-            needLocationCity: need.location?.city || "Unknown",
-          } as EnrichedTask;
-        } catch {
-          // Fallback if need is deleted or inaccessible
-          return {
-            ...a,
-            needTitle: "Unknown Need",
-            needCategory: "Unknown",
-            needUrgency: "low",
-            needLocationArea: "Unknown",
-            needLocationCity: "Unknown",
-          } as EnrichedTask;
-        }
-      });
-
-      const enrichedTasks = await Promise.all(enrichedPromises);
-      setTasks(enrichedTasks);
+      setTasks(assignments);
     } catch (err) {
       setError("Failed to load your tasks. Please refresh the page.");
     } finally {
@@ -201,38 +170,34 @@ export default function MyTasksPage() {
           <div className="flex bg-gray-100 p-1 rounded-lg w-full max-w-md">
             <button
               onClick={() => setActiveTab("active")}
-              className={`flex-1 py-2 text-sm font-semibold rounded-md transition-colors flex items-center justify-center gap-2 ${
-                activeTab === "active"
-                  ? "bg-white text-gray-900 shadow-sm"
-                  : "text-gray-500 hover:text-gray-700"
-              }`}
+              className={`flex-1 py-2 text-sm font-semibold rounded-md transition-colors flex items-center justify-center gap-2 ${activeTab === "active"
+                ? "bg-white text-gray-900 shadow-sm"
+                : "text-gray-500 hover:text-gray-700"
+                }`}
             >
               Active
               <span
-                className={`px-2 py-0.5 rounded-full text-[10px] ${
-                  activeTab === "active"
-                    ? "bg-teal-100 text-teal-700"
-                    : "bg-gray-200 text-gray-500"
-                }`}
+                className={`px-2 py-0.5 rounded-full text-[10px] ${activeTab === "active"
+                  ? "bg-teal-100 text-teal-700"
+                  : "bg-gray-200 text-gray-500"
+                  }`}
               >
                 {activeTasks.length}
               </span>
             </button>
             <button
               onClick={() => setActiveTab("completed")}
-              className={`flex-1 py-2 text-sm font-semibold rounded-md transition-colors flex items-center justify-center gap-2 ${
-                activeTab === "completed"
-                  ? "bg-white text-gray-900 shadow-sm"
-                  : "text-gray-500 hover:text-gray-700"
-              }`}
+              className={`flex-1 py-2 text-sm font-semibold rounded-md transition-colors flex items-center justify-center gap-2 ${activeTab === "completed"
+                ? "bg-white text-gray-900 shadow-sm"
+                : "text-gray-500 hover:text-gray-700"
+                }`}
             >
               Completed
               <span
-                className={`px-2 py-0.5 rounded-full text-[10px] ${
-                  activeTab === "completed"
-                    ? "bg-teal-100 text-teal-700"
-                    : "bg-gray-200 text-gray-500"
-                }`}
+                className={`px-2 py-0.5 rounded-full text-[10px] ${activeTab === "completed"
+                  ? "bg-teal-100 text-teal-700"
+                  : "bg-gray-200 text-gray-500"
+                  }`}
               >
                 {completedTasks.length}
               </span>
@@ -285,13 +250,10 @@ export default function MyTasksPage() {
                   <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
                     <div className="space-y-1">
                       <h3 className="text-lg font-bold text-gray-900 leading-snug">
-                        {task.needTitle}
+                        {task.needTitle || "Unknown Need"}
                       </h3>
                       <div className="flex flex-wrap items-center gap-2 mt-2">
-                        <UrgencyBadge urgency={task.needUrgency} />
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-700">
-                          {CATEGORY_LABELS[task.needCategory] ?? task.needCategory}
-                        </span>
+                        {task.urgency && <UrgencyBadge urgency={task.urgency} />}
                         <StatusBadge status={task.status} />
                       </div>
                     </div>
@@ -303,12 +265,12 @@ export default function MyTasksPage() {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-1.5 text-sm text-gray-600 bg-gray-50 p-2.5 rounded-lg border border-gray-100">
-                    <MapPin size={16} className="text-teal-600 shrink-0" />
-                    <span className="truncate">
-                      {task.needLocationArea}, {task.needLocationCity}
-                    </span>
-                  </div>
+                  {task.area && (
+                    <div className="flex items-center gap-1.5 text-sm text-gray-600 bg-gray-50 p-2.5 rounded-lg border border-gray-100">
+                      <MapPin size={16} className="text-teal-600 shrink-0" />
+                      <span className="truncate">{task.area}</span>
+                    </div>
+                  )}
 
                   {/* Actions */}
                   <div className="flex flex-wrap items-center gap-3 pt-2">

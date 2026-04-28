@@ -73,7 +73,7 @@ def _log_activity(
 
 # ── GET /volunteers ───────────────────────────────────────────────────────────
 @router.get(
-    "/",
+    "",
     response_model=list[VolunteerResponse],
     summary="List all volunteers (admin only)",
 )
@@ -109,7 +109,19 @@ def list_volunteers(
 
     for doc in docs:
         try:
-            volunteer = _doc_to_volunteer(doc)
+            volunteer_data = doc.to_dict()
+            volunteer_data["uid"] = doc.id
+
+            # Fallback: fetch name from users collection if missing
+            if not volunteer_data.get("name"):
+                user_doc = db.collection("users").document(doc.id).get()
+                if user_doc.exists:
+                    user_data = user_doc.to_dict()
+                    volunteer_data["name"] = user_data.get("name", "")
+                    if not volunteer_data.get("email"):
+                        volunteer_data["email"] = user_data.get("email", "")
+
+            volunteer = VolunteerResponse(**volunteer_data)
             # area filter applied in Python (Firestore can't filter nested fields easily)
             if area and volunteer.location.area.lower() != area.lower():
                 continue
@@ -155,7 +167,19 @@ def get_volunteer(
             detail=f"Volunteer with uid '{uid}' not found.",
         )
 
-    return _doc_to_volunteer(doc)
+    volunteer_data = doc.to_dict()
+    volunteer_data["uid"] = doc.id
+
+    # Fallback: fetch name and email from users collection if missing
+    if not volunteer_data.get("name"):
+        user_doc = db.collection("users").document(uid).get()
+        if user_doc.exists:
+            user_data = user_doc.to_dict()
+            volunteer_data["name"] = user_data.get("name", "")
+            if not volunteer_data.get("email"):
+                volunteer_data["email"] = user_data.get("email", "")
+
+    return VolunteerResponse(**volunteer_data)
 
 
 # ── PUT /volunteers/{uid} ─────────────────────────────────────────────────────
@@ -294,10 +318,39 @@ def get_volunteer_tasks(
         except Exception as exc:
             logger.warning("Skipping malformed assignment doc %s: %s", doc.id, exc)
 
+    # Enrich with need data
+    enriched_results = []
+    for assignment in results:
+        need_id = assignment.needId
+        if need_id:
+            need_doc = db.collection("needs").document(need_id).get()
+            if need_doc.exists:
+                need_data = need_doc.to_dict()
+                # Create enriched response
+                enriched_data = assignment.model_dump()
+                enriched_data["needTitle"] = need_data.get("title", "Unknown Need")
+                enriched_data["urgency"] = need_data.get("urgency")
+                enriched_data["area"] = need_data.get("location", {}).get("area")
+                enriched_results.append(AssignmentResponse(**enriched_data))
+            else:
+                # Need not found, add default values
+                enriched_data = assignment.model_dump()
+                enriched_data["needTitle"] = "Unknown Need"
+                enriched_data["urgency"] = None
+                enriched_data["area"] = None
+                enriched_results.append(AssignmentResponse(**enriched_data))
+        else:
+            # No needId, add default values
+            enriched_data = assignment.model_dump()
+            enriched_data["needTitle"] = "Unknown Need"
+            enriched_data["urgency"] = None
+            enriched_data["area"] = None
+            enriched_results.append(AssignmentResponse(**enriched_data))
+
     # Sort in memory to avoid requiring a Firestore composite index
-    results.sort(
+    enriched_results.sort(
         key=lambda x: x.assignedAt.timestamp() if x.assignedAt else 0,
         reverse=True
     )
 
-    return results
+    return enriched_results

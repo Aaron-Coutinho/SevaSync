@@ -9,10 +9,11 @@ import { get, post, patch } from "@/lib/api";
 // ── Types ─────────────────────────────────────────────────────────────────────
 export interface VolunteerSuggestion {
   volunteerId: string;
+  name: string; // Volunteer's actual name from users collection
   score: number;
   reasons: string[];
   // Optionally enriched with profile data fetched by parent
-  volunteerName?: string;
+  volunteerName?: string; // Deprecated - use 'name' instead
   area?: string;
   skills?: string[];
   initials?: string;
@@ -37,8 +38,8 @@ function ScoreBar({ score }: { score: number }) {
     clamped >= 75
       ? "bg-green-500"
       : clamped >= 50
-      ? "bg-yellow-400"
-      : "bg-red-400";
+        ? "bg-yellow-400"
+        : "bg-red-400";
 
   return (
     <div className="flex items-center gap-2">
@@ -76,7 +77,7 @@ function VolunteerCard({
         </div>
         <div className="min-w-0">
           <p className="text-sm font-semibold text-gray-900 truncate">
-            {suggestion.volunteerName ?? suggestion.volunteerId}
+            {suggestion.name || suggestion.volunteerId}
           </p>
           {suggestion.area && (
             <p className="text-xs text-gray-500 flex items-center gap-1">
@@ -143,9 +144,8 @@ function VolunteerCard({
 function Toast({ message, visible }: { message: string; visible: boolean }) {
   return (
     <div
-      className={`fixed bottom-24 left-1/2 -translate-x-1/2 z-50 transition-all duration-300 ${
-        visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4 pointer-events-none"
-      }`}
+      className={`fixed bottom-24 left-1/2 -translate-x-1/2 z-50 transition-all duration-300 ${visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4 pointer-events-none"
+        }`}
     >
       <div className="flex items-center gap-2 bg-gray-900 text-white text-sm font-medium px-5 py-3 rounded-full shadow-lg">
         <CheckCircle size={16} className="text-teal-400" />

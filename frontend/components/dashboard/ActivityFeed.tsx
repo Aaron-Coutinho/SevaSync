@@ -21,6 +21,11 @@ function timeAgo(dateStr: string | null): string {
   return `${Math.floor(h / 24)}d ago`;
 }
 
+function truncateTitle(title: string, maxLength: number = 40): string {
+  if (!title) return "Unknown Need";
+  return title.length > maxLength ? title.slice(0, maxLength) + "…" : title;
+}
+
 interface ActivityFeedProps {
   assignments: AssignmentItem[];
 }
@@ -51,7 +56,7 @@ export default function ActivityFeed({ assignments }: ActivityFeedProps) {
               </span>{" "}
               <span className="text-gray-500">assigned to</span>{" "}
               <span className="font-medium truncate">
-                {a.needTitle ?? a.needId.slice(0, 12) + "…"}
+                {a.needTitle ? truncateTitle(a.needTitle) : a.needId.slice(0, 12) + "…"}
               </span>
             </p>
             <p className="text-xs text-gray-400 mt-0.5">{timeAgo(a.assignedAt)}</p>
