@@ -1,9 +1,6 @@
 {
   "framework": "nextjs",
-  "build": {
-    "env": {
-      "NEXT_PUBLIC_BACKEND_URL": "REPLACE_WITH_CLOUD_RUN_URL"
-    }
-  },
-  "regions": ["bom1"]
+  "regions": [
+    "bom1"
+  ]
 }

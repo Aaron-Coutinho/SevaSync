@@ -968,3 +968,19 @@ The crash was caused by queries combining `.where()` and `.order_by()` on differ
 
 **Status:** ✅ Complete
 ---
+
+---
+## [Fix REPLACE_WITH_CLOUD_RUN_URL Placeholder] | 28 Apr 2026, 21:58 IST
+
+**Prompt Summary:** Fix console errors showing API requests to "REPLACE_WITH_CLOUD_RUN_URL" instead of actual backend URL. The placeholder was hardcoded in vercel.json build env, overriding Vercel environment variables.
+
+**Files Created:** None
+
+**Files Modified:**
+- `frontend/vercel.json` — Removed the build.env section that hardcoded NEXT_PUBLIC_BACKEND_URL to "REPLACE_WITH_CLOUD_RUN_URL". This allows Vercel environment variables to be used instead of the placeholder.
+
+**Files Deleted:** None
+
+**Status:** ✅ Complete
+**Note:** User needs to set NEXT_PUBLIC_BACKEND_URL in Vercel project settings with the actual Cloud Run URL.
+---
