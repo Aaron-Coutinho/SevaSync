@@ -33,3 +33,9 @@ pip-log.txt
 *-firebase-adminsdk-*.json
 *-firebase-adminsdk-*.txt
 firebase-debug.log
+
+#Special files
+Final_Solution.md
+DEPLOYMENT.md
+IMPLEMENTATION_PLAN.md
+LOG_Changes.md
